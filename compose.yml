@@ -1,0 +1,91 @@
+# The edge of the kosh-db VM: Caddy on 80 and 443 for every site on the box, and the two Next apps
+# behind search.atthebunga.com. Everything else runs as its own Compose project and shares one small
+# network with the gateway, and nothing more:
+#
+#   api-edge    kosh's database stack (gurmukhi-kosh selfhost/): PostgREST as `rest`
+#   radio-edge  the radio stack (google-home-radiocaster streaming-server/selfhost/): `radio`
+#   pir-edge    the PIR poller (pir-sound-tracker apps/poller/selfhost/): `pir-poller`
+#
+# Run Compose through scripts/compose.sh, never bare `docker compose`: it pins the project name and
+# reads the API keys from kosh's .env before this folder's own (README, "Secrets").
+
+name: atthebunga-server
+
+x-app: &app
+  restart: unless-stopped
+  depends_on: [gateway]
+  # Postgres keeps most of the 12 GB (kosh's PG_SHARED_BUFFERS); each app stays well under a gigabyte.
+  mem_limit: 768m
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "3" }
+  healthcheck:
+    test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1),()=>process.exit(1))"]
+    interval: 30s
+    timeout: 10s
+    start_period: 20s
+    retries: 3
+
+services:
+  gateway:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    # Only what Caddy needs. The database's own secrets (POSTGRES_PASSWORD, JWT_SECRET) live in the
+    # same kosh .env file but never reach this container.
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set in .env (the API's domain, e.g. 141-148-39-45.sslip.io)}
+      ANON_KEY: ${ANON_KEY:?from kosh's selfhost/.env}
+      SERVICE_KEY: ${SERVICE_KEY:?from kosh's selfhost/.env}
+      AKHAR_KEY: ${AKHAR_KEY:?from kosh's selfhost/.env}
+      BACKUP_TOKEN: ${BACKUP_TOKEN:?from kosh's selfhost/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    networks: [default, api-edge, radio-edge, pir-edge]
+    volumes:
+      # Folders, not files: deploy.sh updates them with git, which replaces each file, and a
+      # single-file mount would keep showing the old one to `caddy reload`.
+      - ./caddy:/etc/caddy:ro
+      - ./sites:/etc/caddy-sites:ro
+      - ./certs:/certs:ro
+      # kosh's nightly encrypted dumps (its scripts/backup.sh), served by sites/api.caddy.
+      - ${KOSH_BACKUPS:-/opt/kosh/selfhost/backups}:/srv/backups:ro
+      - caddy_data:/data
+
+  kosh:
+    <<: *app
+    image: ghcr.io/thehimmat/gurmukhi-kosh:${KOSH_TAG:-latest}
+    environment:
+      SUPABASE_URL: http://gateway:8080
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_KEY}
+      ADMIN_KEY: ${ADMIN_KEY:?set in .env (the curator key, as in Vercel)}
+      NODE_OPTIONS: --max-old-space-size=512
+
+  search:
+    <<: *app
+    image: ghcr.io/thehimmat/gurmukhi-search:${SEARCH_TAG:-latest}
+    depends_on: [gateway, kosh]
+    environment:
+      SUPABASE_URL: http://gateway:8080
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      NODE_OPTIONS: --max-old-space-size=512
+
+# Made by scripts/host-setup.sh; each other project joins its own as external too.
+networks:
+  api-edge:
+    name: api-edge
+    external: true
+  radio-edge:
+    name: radio-edge
+    external: true
+  pir-edge:
+    name: pir-edge
+    external: true
+
+volumes:
+  # Caddy's certificates and ACME account. The name is from when the gateway ran in kosh's
+  # `selfhost` Compose project; keeping it means the sslip.io certificate isn't issued again.
+  caddy_data:
+    name: selfhost_caddy_data
+    external: true
