@@ -1,12 +1,11 @@
 # atthebunga-server
 
 The config for the one server behind At the Bunga's self-hosted sites: an Oracle Cloud Always Free
-VM (`kosh-db`, Ashburn, Ampere A1, 2 OCPU / 12 GB, Ubuntu 24.04, `141.148.39.45`).
+VM (`kosh-db`, Ashburn, Ampere A1, 4 OCPU / 24 GB, Ubuntu 24.04, `141.148.39.45`).
 
-> **Status: not live yet.** The server still runs all of this from gurmukhi-kosh's `selfhost/`
-> folder. This repo takes over at the cutover in
-> [gurmukhi-kosh#395](https://github.com/thehimmat/gurmukhi-kosh/issues/395) (Phase 3). Until then,
-> don't run `deploy.sh` or `host-setup.sh` against the server.
+Live since 2026-11-10, when it took the edge over from gurmukhi-kosh's `selfhost/` folder
+([gurmukhi-kosh#395](https://github.com/thehimmat/gurmukhi-kosh/issues/395)). Every merge to `main`
+deploys after CI.
 
 ## What runs where
 
@@ -145,12 +144,18 @@ own (e.g. `foo-edge`), add it to `host-setup.sh`'s list and the gateway's `netwo
 2. gurmukhi-kosh's database setup (its `selfhost/README.md`): `.env`, keys, restore, nightly backup.
 3. `ADMIN_KEY` in `/opt/infra/.env` and the three files in `certs/` (above).
 4. `host-setup.sh` again: it starts the gateway and the apps once nothing is missing.
+
+On a server that's already live, re-running `host-setup.sh` is safe, but its `apt-get full-upgrade`
+can restart Docker, which takes every site down for a few seconds. To update only this checkout,
+run `deploy.sh infra` instead.
 5. The radio and PIR stacks, from their own repos.
 
-## Memory (12 GB)
+## Memory (24 GB)
 
-Postgres keeps most of it (`shared_buffers` 3 GB in kosh's `.env`); each app is capped at 768 MB
-with a 512 MB heap (about 80 MB idle); PostgREST and Caddy about 100 MB; 2 GB swap.
+Postgres has `shared_buffers` 3 GB (kosh's `.env`); each app is capped at 768 MB with a 512 MB
+heap (about 80 MB idle); PostgREST and Caddy take about 100 MB each; the radio stack's speech
+recognition has a cap of its own (its repo). The rest is the kernel's page cache. Swap is 2 GB.
+Check with `docker stats --no-stream`.
 
 ## Oracle's idle-instance reclaim
 

@@ -28,7 +28,7 @@ describe("compose.yml", () => {
     assert.equal(count(compose, /SUPABASE_ANON_KEY: \$\{ANON_KEY\}/g), 2);
   });
 
-  it("caps each app's memory so Postgres keeps its share of the 12 GB", () => {
+  it("caps each app's memory so Postgres keeps its share of the 24 GB", () => {
     assert.match(compose, /^x-app: &app\n(?: {2}.*\n)* {2}mem_limit: \d+[mg]$/m);
     assert.equal(count(compose, /^ {4}<<: \*app$/gm), 2);
   });
