@@ -1,0 +1,38 @@
+name: CI
+# The config tests, shellcheck, and the two things only Docker can check: Compose accepts the
+# file with every required setting, and Caddy accepts the whole config (with throwaway certificates
+# standing in for Cloudflare's, so the TLS blocks load).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Tests
+        run: node --test tests/*.test.mjs
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh
+      - name: Throwaway settings and certificates
+        run: |
+          mkdir -p ci certs
+          printf '%s\n' ANON_KEY=a SERVICE_KEY=s AKHAR_KEY=k BACKUP_TOKEN=t COMPOSE_FILE=elsewhere.yml > ci/kosh.env
+          printf '%s\n' SITE_ADDRESS=api.example.test ADMIN_KEY=x > .env
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=ci \
+            -keyout certs/origin.key -out certs/origin.pem 2>/dev/null
+          cp certs/origin.pem certs/cloudflare-origin-pull-ca.pem
+      - name: Compose accepts the file
+        # Through compose.sh, so it also proves kosh's COMPOSE_FILE (set above) is overridden.
+        run: KOSH_ENV=ci/kosh.env sh scripts/compose.sh config --quiet
+      - name: Caddy accepts the config
+        run: |
+          docker run --rm -v "$PWD/caddy:/etc/caddy:ro" -v "$PWD/sites:/etc/caddy-sites:ro" -v "$PWD/certs:/certs:ro" \
+            -e SITE_ADDRESS=api.example.test -e ANON_KEY=a -e SERVICE_KEY=s -e AKHAR_KEY=k -e BACKUP_TOKEN=t \
+            caddy:2.8.4 caddy validate --config /etc/caddy/Caddyfile

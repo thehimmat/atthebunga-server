@@ -1,0 +1,5 @@
+# Settings and secrets on the server (README, "Secrets")
+.env
+certs/
+# CI's throwaway settings
+ci/
