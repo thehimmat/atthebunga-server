@@ -1,0 +1,33 @@
+name: Deploy
+# After CI passes on main: apply this repo's config on the server (deploy.sh infra: update
+# /opt/infra, bring the stack up, reload Caddy). The app images deploy from their own repos.
+#
+# Turned on by the repository variable DEPLOY_HOST (ubuntu@141.148.39.45) and the secrets
+# DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS (README, "Deploys"). Until then it does nothing.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ vars.DEPLOY_HOST != '' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Deploy on the VM
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          (umask 077 && printf '%s\n' "$KEY" > ~/.ssh/id_ed25519)
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -o BatchMode=yes "$HOST" infra
