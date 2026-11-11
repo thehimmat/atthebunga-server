@@ -14,7 +14,7 @@ name: atthebunga-server
 x-app: &app
   restart: unless-stopped
   depends_on: [gateway]
-  # Postgres keeps the biggest share of the 24 GB (kosh's PG_SHARED_BUFFERS); each app stays well under a gigabyte.
+  # Postgres keeps the biggest share of the 12 GB (kosh's PG_SHARED_BUFFERS); each app stays well under a gigabyte.
   mem_limit: 768m
   logging:
     driver: json-file
