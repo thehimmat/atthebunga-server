@@ -1,7 +1,7 @@
 # atthebunga-server
 
 The config for the one server behind At the Bunga's self-hosted sites: an Oracle Cloud Always Free
-VM (`kosh-db`, Ashburn, Ampere A1, 4 OCPU / 24 GB, Ubuntu 24.04, `141.148.39.45`).
+VM (`kosh-db`, Ashburn, Ampere A1, 2 OCPU / 12 GB (the Always Free A1 allowance), Ubuntu 24.04, `141.148.39.45`).
 
 Live since 2026-11-10, when it took the edge over from gurmukhi-kosh's `selfhost/` folder
 ([gurmukhi-kosh#395](https://github.com/thehimmat/gurmukhi-kosh/issues/395)). Every merge to `main`
@@ -150,12 +150,16 @@ can restart Docker, which takes every site down for a few seconds. To update onl
 run `deploy.sh infra` instead.
 5. The radio and PIR stacks, from their own repos.
 
-## Memory (24 GB)
+## Memory (12 GB)
 
 Postgres has `shared_buffers` 3 GB (kosh's `.env`); each app is capped at 768 MB with a 512 MB
 heap (about 80 MB idle); PostgREST and Caddy take about 100 MB each; the radio stack's speech
 recognition has a cap of its own (its repo). The rest is the kernel's page cache. Swap is 2 GB.
 Check with `docker stats --no-stream`.
+
+**CPU (2 OCPU):** about 1.1 cores in use, almost all the radio's lyrics follower (capped at 1.2 in its
+repo); Postgres, the apps and Caddy are near idle. Growing past the Always Free shape is billed on
+Pay As You Go: decide that first (#4). It ran at 4 OCPU / 24 GB from 2026-11-07 for a few days.
 
 ## Oracle's idle-instance reclaim
 
