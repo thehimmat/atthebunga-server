@@ -60,7 +60,12 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_KEY}
       ADMIN_KEY: ${ADMIN_KEY:?set in .env (the curator key, as in Vercel)}
+      SCAN_IMAGE_ROOT: /srv/scans
       NODE_OPTIONS: --max-old-space-size=512
+    volumes:
+      # Page images for kosh's curator-only scan viewer (/admin/scans), copied here from the Mac
+      # (kosh's pipeline/scans/text-layer/README.md). Read-only: the app only serves them.
+      - ${KOSH_SCANS:-/opt/kosh/scans}:/srv/scans:ro
 
   search:
     <<: *app

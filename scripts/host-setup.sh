@@ -61,6 +61,9 @@ for net in api-edge radio-edge pir-edge; do
   sudo docker network inspect "$net" >/dev/null 2>&1 || sudo docker network create "$net" >/dev/null
 done
 sudo docker volume inspect selfhost_caddy_data >/dev/null 2>&1 || sudo docker volume create selfhost_caddy_data >/dev/null
+# kosh's scan page images (compose.yml): owned by ubuntu, so rsync from the Mac can write them.
+# Made here, not by Docker, which would create a missing bind-mount source as root.
+sudo install -d -o ubuntu -g ubuntu -m 755 "${KOSH_SCANS:-/opt/kosh/scans}"
 
 echo "== settings (.env, never printed)"
 env_file=$dir/.env

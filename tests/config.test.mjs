@@ -50,6 +50,16 @@ describe("compose.yml", () => {
     assert.match(compose, /- \$\{KOSH_BACKUPS:-\/opt\/kosh\/selfhost\/backups\}:\/srv\/backups:ro/);
   });
 
+  it("gives kosh its scan images read-only, from a folder host-setup makes", () => {
+    assert.match(compose, /^ {2}kosh:\n(?: {4}.*\n|\s*\n)*? {6}SCAN_IMAGE_ROOT: \/srv\/scans$/m);
+    assert.match(compose, /- \$\{KOSH_SCANS:-\/opt\/kosh\/scans\}:\/srv\/scans:ro/);
+    assert.match(read("scripts/host-setup.sh"), /install -d -o ubuntu -g ubuntu -m 755 "\$\{KOSH_SCANS:-\/opt\/kosh\/scans\}"/);
+    // and deploy.sh, as ubuntu, before `up`: a missing bind-mount source would be made by Docker as root.
+    const deploy = read("scripts/deploy.sh");
+    assert.ok(deploy.indexOf('mkdir -p "${KOSH_SCANS:-$kosh_dir/scans}"') < deploy.indexOf('sh "$compose" up'));
+    assert.ok(deploy.includes('mkdir -p "${KOSH_SCANS:-$kosh_dir/scans}"'));
+  });
+
   it("joins the gateway, and only the gateway, to each neighbour's network", () => {
     assert.match(compose, /^ {2}gateway:\n(?: {4}.*\n)*? {4}networks: \[default, api-edge, radio-edge, pir-edge\]$/m);
     for (const net of ["api-edge", "radio-edge", "pir-edge"]) {
