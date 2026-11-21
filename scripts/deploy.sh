@@ -43,6 +43,8 @@ fi
 if [ "$target" = kosh ] || [ "$target" = search ]; then
   sh "$compose" pull -q "$target"
 fi
+# The kosh app's scan images (compose.yml), made as ubuntu before Docker would make it as root.
+mkdir -p "${KOSH_SCANS:-$kosh_dir/scans}"
 sh "$compose" up -d --quiet-pull --wait
 sh "$compose" exec -T gateway caddy reload --config /etc/caddy/Caddyfile
 docker image prune -f >/dev/null

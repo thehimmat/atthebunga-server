@@ -72,6 +72,10 @@ Two files, both mode 600 and never in git:
 - `/opt/infra/.env` (see `env.example`): `SITE_ADDRESS`, `ADMIN_KEY` (the same curator key as in
   Vercel), and optionally `KOSH_TAG` / `SEARCH_TAG` to pin an older image.
 
+`/opt/kosh/scans` (or `KOSH_SCANS`) holds the page images for kosh's curator-only scan viewer,
+mounted read-only into the kosh app as `SCAN_IMAGE_ROOT`. They're copied in from the Mac with rsync
+(kosh's `pipeline/scans/text-layer/README.md`); deploy.sh and host-setup.sh make the folder.
+
 `certs/` holds the Cloudflare certificates (below), also outside git.
 
 ## Cloudflare
